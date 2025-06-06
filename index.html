@@ -60,28 +60,25 @@
     let treeImg;
 
     function preload() {
-      treeImg = loadImage('/mnt/data/stock-vector-big-banyan-tree-eps-old-tree-2101700290.jpg');
+      treeImg = loadImage('banyan.jpg'); // Ensure this image is in the same folder
     }
 
     async function fetchPollution() {
       const pollutants = ['pm25', 'pm10', 'no2', 'so2', 'co', 'o3'];
-      const promises = pollutants.map(async (param) => {
-        const url = `https://api.openaq.org/v2/measurements?limit=100&page=1&sort=desc&parameter=${param}`;
-        const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-        const res = await fetch(proxy);
-        const parsed = JSON.parse(await res.text());
-        const data = JSON.parse(parsed.contents);
-        const values = data.results.map(d => d.value);
-        const avg = values.reduce((a, b) => a + b, 0) / values.length;
-        pollutionAverages[param.toUpperCase()] = avg.toFixed(2);
-      });
-
       try {
-        await Promise.all(promises);
+        await Promise.all(pollutants.map(async (param) => {
+          const url = `https://api.openaq.org/v2/measurements?limit=100&page=1&sort=desc&parameter=${param}`;
+          const proxy = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+          const res = await fetch(proxy);
+          const data = await res.json();
+          const values = data.results.map(d => d.value).filter(v => typeof v === 'number');
+          const avg = values.reduce((a, b) => a + b, 0) / values.length;
+          pollutionAverages[param.toUpperCase()] = avg.toFixed(2);
+        }));
+
         const pm25 = parseFloat(pollutionAverages['PM25']);
         status = getStatus(pm25);
-
-        const mitigationRate = (100 - (pm25 / 35.4) * 100).toFixed(2); // Assuming 35.4 µg/m³ is danger threshold
+        const mitigationRate = (100 - (pm25 / 35.4) * 100).toFixed(2);
 
         document.getElementById('pollution-data').innerHTML = `
           <strong>Current Global Pollution Levels (µg/m³):</strong><br>
@@ -96,7 +93,7 @@
 
         redraw();
       } catch (err) {
-        document.getElementById('pollution-data').textContent = 'Failed to load pollution data';
+        document.getElementById('pollution-data').textContent = '⚠️ Failed to load pollution data. Please try again later.';
         status = 'unknown';
         redraw();
       }
@@ -112,7 +109,7 @@
       createCanvas(windowWidth, 600);
       noLoop();
       fetchPollution();
-      setInterval(fetchPollution, 60000);
+      setInterval(fetchPollution, 60000); // every 1 min
     }
 
     function draw() {

@@ -57,12 +57,20 @@
   <script>
     let pollutionAverages = {};
     let status = 'loading';
+    let treeImg;
+
+    function preload() {
+      treeImg = loadImage('/mnt/data/stock-vector-big-banyan-tree-eps-old-tree-2101700290.jpg');
+    }
 
     async function fetchPollution() {
       const pollutants = ['pm25', 'pm10', 'no2', 'so2', 'co', 'o3'];
       const promises = pollutants.map(async (param) => {
-        const res = await fetch(`https://api.openaq.org/v2/measurements?limit=100&page=1&sort=desc&parameter=${param}`);
-        const data = await res.json();
+        const url = `https://api.openaq.org/v2/measurements?limit=100&page=1&sort=desc&parameter=${param}`;
+        const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+        const res = await fetch(proxy);
+        const parsed = JSON.parse(await res.text());
+        const data = JSON.parse(parsed.contents);
         const values = data.results.map(d => d.value);
         const avg = values.reduce((a, b) => a + b, 0) / values.length;
         pollutionAverages[param.toUpperCase()] = avg.toFixed(2);
@@ -104,33 +112,27 @@
       createCanvas(windowWidth, 600);
       noLoop();
       fetchPollution();
-      setInterval(fetchPollution, 60000); // auto-refresh every minute
+      setInterval(fetchPollution, 60000);
     }
 
     function draw() {
       clear();
       background(255);
+      imageMode(CENTER);
+      image(treeImg, width / 2, height / 2 + 50, 500, 400);
 
-      // draw trunk
-      stroke(80, 50, 30);
-      strokeWeight(20);
-      line(width / 2, height, width / 2, height - 200);
+      const leafColor =
+        status === 'green' ? color(34, 139, 34, 180) :
+        status === 'brown' ? color(139, 69, 19, 180) :
+        status === 'mixed' ? null : color(100);
 
-      // draw leaves
-      const totalLeaves = 200;
       noStroke();
-      for (let i = 0; i < totalLeaves; i++) {
-        const angle = random(TWO_PI);
-        const radius = random(60, 180);
-        const x = width / 2 + cos(angle) * radius;
-        const y = height - 200 + sin(angle) * radius;
-
-        if (status === 'green') fill(34, 139, 34, 180); // forest green
-        else if (status === 'brown') fill(139, 69, 19, 180); // saddle brown
-        else if (status === 'mixed') fill(lerpColor(color(139, 69, 19), color(34, 139, 34), random()));
-        else fill(120);
-
-        ellipse(x, y, random(12, 18), random(16, 24));
+      for (let i = 0; i < 200; i++) {
+        const x = random(width / 2 - 200, width / 2 + 200);
+        const y = random(height / 2 - 100, height / 2 + 100);
+        if (status === 'mixed') fill(lerpColor(color(139, 69, 19), color(34, 139, 34), random()));
+        else fill(leafColor);
+        ellipse(x, y, random(8, 14), random(10, 16));
       }
     }
 
@@ -141,3 +143,4 @@
   </script>
 </body>
 </html>
+
